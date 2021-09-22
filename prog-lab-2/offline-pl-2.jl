@@ -1,3 +1,10 @@
+# using DataFrames
+# showln(x) = (show(x); println())
+#
+# # A DataFrame is an in-memory database
+# df = DataFrame(A = [1, 2], B = [ℯ, π], C = ["xx", "xy"])
+# showln(df)
+
 cd(dirname(@__FILE__()))
 
 using Plots
@@ -5,6 +12,7 @@ using PlotThemes
 using Measures
 using LinearAlgebra
 using SparseArrays
+
 
 #=
 
@@ -19,7 +27,7 @@ Part I: A Simple Implementation of Newton's Method
 #=
 We wish to solve F(x) == 0. For this we need to
 - Evaluate F(x)
-- Approximate or Calculate (Approximate) F'(x)
+- Approximate or Calcualte F'(x)
 - Report || F(x) || : For some problems, ||⋅|| is not the Euclidan norm
 
 We thus define a simple constructor (object) with three fields:
@@ -44,21 +52,22 @@ end
 # nonlinear equations. We will slightly adapt it blow to fit the applications.
 function newton_nd(F::Residual,x_0::Array{Float64,1},
                    atol::Float64,rtol::Float64,maxit::Int64)
-    x  = copy(x_0)
-    it = 0
 
+    x   = copy(x_0)
+    it  = 0
     res = F.Fnrm(F(x))
-    r_0 = res # ||F(x_0)||
+    r_0 = res
     println("||F(x)|| = ", res)
     while res > rtol*r_0 + atol && it < maxit
-        dx = -F.jac(x)\F(x) # \ built-in direct linear solver.
-         x = x + dx
-        it+= 1
+        dx  = -F.jac(x)\F(x)
+        x   = x + dx
+        it += 1
         res = F.Fnrm(F(x))
         println("||F(x)|| = ", res)
     end
     return x, it
 end
+
 
 #=
 
@@ -73,14 +82,13 @@ Part II: A Parameter ID Problem
 # The nonlinear least squares objective function
 function nonlinear_ls(v_n::Array{Float64,1},
                       t_n::LinRange{Float64},
-                      x::Array{Float64,1})
-
+                        x::Array{Float64,1})
+    F = 0.0
     n = length(v_n)
     if n != length(t_n)
         error("v_n and t_n must be the same length")
     end
 
-    F  = 0.0
     it = 1
     while it <= n
         F += (v_n[it] - exp(-x[1]*t_n[it])*(
@@ -88,6 +96,7 @@ function nonlinear_ls(v_n::Array{Float64,1},
                              x[4]*cos(x[2]*t_n[it])))^2
         it += 1
     end
+
     return F
 end
 
@@ -115,7 +124,6 @@ t = LinRange(0, 40, 800)
 v = exp.(-ex1.*t).*(ex3*sin.(ex2.*t)+ex4.*cos.(ex2.*t))
 
 theme(:wong)
-
 p1 = plot(t,v,
           titlefont = font(18, "Helvetica"),
           title= "Motion of weight attached to damped spring",
@@ -217,6 +225,7 @@ CD_hess(rand(4),1e-6,nls_obj)
 # Value at optimal solution
 CD_hess([ex1,ex2,ex3,ex4],1e-6,nls_obj)
 
+
 ################################################################################
 # Defining constructors for gradients and hessians
 ################################################################################
@@ -251,6 +260,7 @@ hess_obj = Hess(nls_obj,1e-8)
 
 nls_res = OptProb(nls_obj,grad_obj,hess_obj)
 
+
 # An adaptation of Newton's method for optimization
 function newton_nd(F::OptProb,x_0::Array{Float64,1},
                    atol::Float64,rtol::Float64,maxit::Int64)
@@ -276,8 +286,7 @@ function newton_nd(F::OptProb,x_0::Array{Float64,1},
 end
 
 # Solve the problem!
-extn, nit = newton_nd(nls_res,[ex1,ex2,ex3,ex4].+rand(4)/20,1e-8,1e-8,150)
-
+extn, nit = newton_nd(nls_res,[ex1,ex2,ex3,ex4].+rand(4)/50,1e-8,1e-8,50)
 
 ################################################################################
 # Plot and compare the approximation
@@ -365,6 +374,9 @@ Part III: Variational Denoising of Signals
           See the notes and video for a description of this application.
 =#
 
+################################################################################
+# Generate Residual F(x)
+################################################################################
 global ts = 1e3      # Penalty of misfit (Try not to use global constants...)
 
 # The nonlinear term in the ODE
@@ -386,6 +398,9 @@ function nl_residual(u::Array{Float64,1},
     return L*u + bulk(u,reg) - [0 ; ts*g ; 0]
 end
 
+# Test
+# nl_residual(abs.(rand(nnd+2)),abs.(rand(nnd)),reg,L)
+
 ################################################################################
 # Generate Jacobian
 ################################################################################
@@ -399,6 +414,7 @@ function diff_bulk(u::Array{Float64,1},reg::Float64)
     end
     return F
 end
+
 
 ################################################################################
 # Defining constructors
@@ -424,6 +440,7 @@ function sig_hess(x::Array{Float64,1},r::Float64,L::SparseMatrixCSC)
     return L + dF
 end
 
+
 function newton_dn(F::SigRes,x_0::Array{Float64,1},
                    atol::Float64,rtol::Float64,maxit::Int64)
 
@@ -446,7 +463,7 @@ end
 # Solve
 nde = 12
 nnd = 2^nde          # Number of abscissae
-reg = 0.001          # "Smoothing" Parameter for Ginzburg-Landau Function
+reg = 0.001           # "Smoothing" Parameter for Ginzburg-Landau Function
 stp = 1/(2^nde - 1)  # Fixed length of intervals
 
 ################################################################################
@@ -486,12 +503,12 @@ for i in 1:nnd
     signal[i] = clnsig[i] + randn()/100
 end
 
-pp = plot(x_grid,[clnsig,signal],
-          titlefontsize = 11,
-          legend=false,
-          lw=3,
-          )
-display(pp)
+# pp = plot(x_grid,[clnsig,signal],
+#           titlefontsize = 11,
+#           legend=false,
+#           lw=3,
+#           )
+# display(pp)
 
 # This is the central difference matrix for the term epsilon*u''(x)
 L  =  (reg/(stp^2))*spdiagm(-1 =>  -ones(nnd+1),
@@ -518,8 +535,8 @@ styles = reshape(styles, 1, length(styles))
 # contrast in the denoised signal. This can be (heuristically!!!) adjusted
 # after solving by scaling the solution u, e.g.  3/2 * u gives a decent
 # adjustment of contrast.
-# cntrst = 1.0
-cntrst = 1.5
+cntrst = 1.0
+# cntrst = 1.5
 
 pp1 = plot(x_grid,[clnsig,signal,cntrst*u_0[2:(nnd+1)]],
           titlefont = font(14, "Helvetica"),
